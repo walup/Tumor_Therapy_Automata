@@ -124,6 +124,7 @@ class Therapy:
                         cell.turnNecrotic()
         
         elif(self.therapyType == TherapyType.CHEMOTHERAPY):
+            cell.countCycle = cell.countCycle + 1
             #Dia en que se inicia el tratamiento
             if(step == self.startDay):
                 #Ahora vamos a establecer si la célula será resistente al tratamiento 
@@ -142,11 +143,12 @@ class Therapy:
                 li = (killRate*concentration)/(resistance*self.nTreatmentSteps + 1)
                 #print("li"+str(li))
                 probKill = li*self.PK*np.exp(-attenuationCoefficient*(step - self.startDay- self.nTreatmentSteps*self.tau))
+                cellCycle = cell.countCycle%4
                 #if(probKill > 0):
                     #print(killRate*concentration)
                     #print(li)
                     #print(probKill)
-                if(random.random() < probKill):
+                if(random.random() < probKill and cellCycle == 1):
                     cell.turnNecrotic()
         
     
