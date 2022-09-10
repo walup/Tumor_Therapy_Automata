@@ -212,7 +212,7 @@ class Cell:
         #Define si la célula será afectada por el tratamiento
         self.therapyAffected = treatmentAffected
         #Lleva el ciclo de vida de la célula, lo cual es importante en tratamientos como la radioterapia
-        self.countCycle = random.randint(0,cycleTime - 1)
+        self.countCycle = cycleTime
     
     def __eq__(self, other):
         self.x == other.x and self.y == other.y
@@ -392,7 +392,7 @@ class Tissue:
                     if(len(normalCells)>0):
                         normalCell = random.choice(normalCells)
                         therapyResistance = self.getTreatmentResistance(step, cell)
-                        self.addProliferatingCell(normalCell[1], normalCell[0], therapyResistance)
+                        self.addProliferatingCell(normalCell[1], normalCell[0], therapyResistance, step)
                     else:
                         cell.setQuiescent(True)
                         self.quiescentCells[cell.y, cell.x] = 1
@@ -487,8 +487,8 @@ class Tissue:
             #Guardamos una snapshot del tumor para poder armar una animación 
             self.evolutionMovie[:,:,:,i] = self.getPicture(includeNecrotic)
     
-    def addProliferatingCell(self, x, y, treatmentAffected):
-        self.cells.append(Cell(x,y,CellType.PROLIFERATING,  self.cellCycleTime, treatmentAffected))
+    def addProliferatingCell(self, x, y, treatmentAffected, step):
+        self.cells.append(Cell(x,y,CellType.PROLIFERATING,  step, treatmentAffected))
         self.occupiedPositions[y,x] = 1       
         
     def getPicture(self, includeNecrotic):
