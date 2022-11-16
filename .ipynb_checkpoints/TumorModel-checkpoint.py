@@ -24,7 +24,6 @@ class Therapy:
     def __init__(self, therapyType, *args):
         self.therapyType = therapyType
         self.inheritanceResistanceProbability = 0.6
-        self.necrosisTherapyRate = 0.15
         #Radioterapia
         if(therapyType == TherapyType.RADIOTHERAPY):
             #El dia en que empieza la terapia siempre será el primer parámetro
@@ -119,19 +118,12 @@ class Therapy:
             elif(step > self.startDay and cell.cellType == CellType.PROLIFERATING and cell.therapyAffected):
                 if(step - self.startDay < self.delayTime):
                     if(random.random() < self.initMitoticProb):
-                        if(random.random() < self.necrosisTherapyRate):
-                            cell.turnNecrotic()
-                        else:
-                            cell.cellType = CellType.DEAD
+                        cell.turnNecrotic()
                 else:
                     if(random.random() < self.finalMitoticProb):
-                        if(random.random() < self.necrosisTherapyRate):
-                            cell.turnNecrotic()
-                        else:
-                            cell.cellType = CellType.DEAD
+                        cell.turnNecrotic()
         
         elif(self.therapyType == TherapyType.CHEMOTHERAPY):
-            cell.countCycle = cell.countCycle + 1
             #Dia en que se inicia el tratamiento
             if(step == self.startDay):
                 #Ahora vamos a establecer si la célula será resistente al tratamiento 
@@ -150,16 +142,12 @@ class Therapy:
                 li = (killRate*concentration)/(resistance*self.nTreatmentSteps + 1)
                 #print("li"+str(li))
                 probKill = li*self.PK*np.exp(-attenuationCoefficient*(step - self.startDay- self.nTreatmentSteps*self.tau))
-                cellCycle = cell.countCycle%4
                 #if(probKill > 0):
                     #print(killRate*concentration)
                     #print(li)
                     #print(probKill)
-                if(random.random() < probKill and cellCycle == 1):
-                    if(random.random() < self.necrosisTherapyRate):
-                        cell.turnNecrotic()
-                    else:
-                        cell.cellType = CellType.DEAD
+                if(random.random() < probKill):
+                    cell.turnNecrotic()
         
     
     def globalTherapyUpdate(self, step, tissue):
@@ -222,7 +210,7 @@ class Cell:
         #Define si la célula será afectada por el tratamiento
         self.therapyAffected = treatmentAffected
         #Lleva el ciclo de vida de la célula, lo cual es importante en tratamientos como la radioterapia
-        self.countCycle = cycleTime
+        self.countCycle = random.randint(0,cycleTime - 1)
     
     def __eq__(self, other):
         self.x == other.x and self.y == other.y
@@ -239,14 +227,13 @@ class Cell:
 
 class Nutrient:
     
-    def __init__(self, width, height, diffusionConstant, healthyCellConsumption, consumptionProlif, consumptionQuiescent):
+    def __init__(self, width, height, diffusionConstant, consumptionProlif, consumptionQuiescent):
         self.width = width
         self.height = height
         self.nutrientConcentration = np.zeros((height, width))
         self.consumptionProlif = consumptionProlif
         self.consumptionQuiescent = consumptionQuiescent
         self.diffusionConstant = diffusionConstant
-        self.healthyCellConsumption = healthyCellConsumption
     
     def putValue(self, i,j, value):
         self.nutrientConcentration[i,j] = value
@@ -254,24 +241,19 @@ class Nutrient:
     def initializeNutrient(self):
         self.nutrientConcentration = np.zeros((self.height, self.width))
     
-    def updateNutrient(self, cell, x, y):
-        index1 = y
-        index2 = x
-        if(not (cell is None)):
-            if(cell.cellType  == CellType.PROLIFERATING):
-                laPlacian = self.nutrientConcentration[(index1 + 1)%self.height, index2] + self.nutrientConcentration[(index1 - 1)%self.height, index2] + self.nutrientConcentration[index1, (index2 + 1)%self.width] + self.nutrientConcentration[index1, (index2 - 1)%self.width] - 4*self.nutrientConcentration[index1, index2]
-                deltaConcentration = self.diffusionConstant*laPlacian - self.consumptionProlif
-                self.nutrientConcentration[index1, index2] = self.nutrientConcentration[index1, index2] + deltaConcentration
-            elif(cell.quiescent == True):
-                laPlacian = self.nutrientConcentration[(index1 + 1)%self.height, index2] + self.nutrientConcentration[(index1 - 1)%self.height, index2] + self.nutrientConcentration[index1, (index2 + 1)%self.width] + self.nutrientConcentration[index1, (index2 - 1)%self.width] - 4*self.nutrientConcentration[index1, index2]
-                deltaConcentration = self.diffusionConstant*laPlacian - self.consumptionQuiescent
-                self.nutrientConcentration[index1, index2] = self.nutrientConcentration[index1, index2] + deltaConcentration
-                #print("quiescent case")
-        else:
+    def updateNutrient(self, cell):
+        index1 = cell.y
+        index2 = cell.x
+        
+        if(cell.cellType  == CellType.PROLIFERATING):
             laPlacian = self.nutrientConcentration[(index1 + 1)%self.height, index2] + self.nutrientConcentration[(index1 - 1)%self.height, index2] + self.nutrientConcentration[index1, (index2 + 1)%self.width] + self.nutrientConcentration[index1, (index2 - 1)%self.width] - 4*self.nutrientConcentration[index1, index2]
-            deltaConcentration = self.diffusionConstant*laPlacian - self.healthyCellConsumption
+            deltaConcentration = self.diffusionConstant*laPlacian - self.consumptionProlif
             self.nutrientConcentration[index1, index2] = self.nutrientConcentration[index1, index2] + deltaConcentration
-            
+        elif(cell.quiescent == True):
+            laPlacian = self.nutrientConcentration[(index1 + 1)%self.height, index2] + self.nutrientConcentration[(index1 - 1)%self.height, index2] + self.nutrientConcentration[index1, (index2 + 1)%self.width] + self.nutrientConcentration[index1, (index2 - 1)%self.width] - 4*self.nutrientConcentration[index1, index2]
+            deltaConcentration = self.diffusionConstant*laPlacian - self.consumptionQuiescent
+            self.nutrientConcentration[index1, index2] = self.nutrientConcentration[index1, index2] + deltaConcentration
+            #print("quiescent case")
     
     def getNutrientValue(self, i,j):
         return self.nutrientConcentration[i, j]
@@ -313,6 +295,7 @@ class Tissue:
         #En esta matriz se registran las posiciones donde hay células necróticas
         self.necroticPositions = np.zeros((self.height, self.width))
         self.quiescentCells = np.zeros((self.height, self.width))
+        
         self.cells = []
         self.colorNecrotic = [176/255, 176/255, 176/255]
         #Tasa de consumo de la matriz extracelular
@@ -327,14 +310,13 @@ class Tissue:
         self.K = 1000
         
         #Parámetros del nutriente
-        self.difussionConstant = 0.01
+        self.difussionConstant = 0.05
         self.consumptionProlif = 0.01
         self.consumptionQuiescent = 0.005
-        self.consumptionHealthy = 0.0001
         
         #Inicializamos la matriz extracelular y el nutriente
         self.ecm = ECM(self.width, self.height, self.ec, self.et)
-        self.nutrient = Nutrient(self.width, self.height, self.difussionConstant, self.consumptionHealthy, self.consumptionProlif, self.consumptionQuiescent)
+        self.nutrient = Nutrient(self.width, self.height, self.difussionConstant, self.consumptionProlif, self.consumptionQuiescent)
         self.initializeNutrientAndECM()
         
         
@@ -383,13 +365,9 @@ class Tissue:
             for j in range(0,self.width):
                 nNeighbors = self.countNeighbors(j,i)
                 self.ecm.updateMatrix(nNeighbors, i, j)
-                #Update nutrient concentration of healthy cells
-                if(self.occupiedPositions[i,j] == 0):
-                    self.nutrient.updateNutrient(None, j,i)
-        #Update nutrient concentration of cancer and other types of cells
-        for i in range(0,len(self.cells)):
-            self.nutrient.updateNutrient(self.cells[i], self.cells[i].x, self.cells[i].y)
         
+        for i in range(0,len(self.cells)):
+            self.nutrient.updateNutrient(self.cells[i])
         
         
     def updateCells(self, step):
@@ -404,10 +382,7 @@ class Tissue:
             if(cell.quiescent == True and len(self.getPositionsToInfest(cell.x, cell.y)) > 0):
                 cell.setQuiescent(False)
                 self.quiescentCells[cell.y,cell.x] = 0
-            
-            oxygenConcentration = self.nutrient.getNutrientValue(cell.y, cell.x)
-            self.cells[i].breathe(oxygenConcentration)
-            
+                
             if(cell.cellType == CellType.PROLIFERATING):
                 if(r <= self.rProlifPrime):
                     normalCells = self.getPositionsToInfest(cell.x, cell.y)
@@ -415,7 +390,7 @@ class Tissue:
                     if(len(normalCells)>0):
                         normalCell = random.choice(normalCells)
                         therapyResistance = self.getTreatmentResistance(step, cell)
-                        self.addProliferatingCell(normalCell[1], normalCell[0], therapyResistance, step)
+                        self.addProliferatingCell(normalCell[1], normalCell[0], therapyResistance)
                     else:
                         cell.setQuiescent(True)
                         self.quiescentCells[cell.y, cell.x] = 1
@@ -423,6 +398,8 @@ class Tissue:
                 else:
                     if(r <= 1 - self.rBinding):
                         self.cells[i].cellType = CellType.COMPLEX
+                oxygenConcentration = self.nutrient.getNutrientValue(cell.y, cell.x)
+                self.cells[i].breathe(oxygenConcentration)
                 self.updateTherapy(step, cell, oxygenConcentration)
             #Complejas
             elif(cell.cellType == CellType.COMPLEX):
@@ -508,8 +485,8 @@ class Tissue:
             #Guardamos una snapshot del tumor para poder armar una animación 
             self.evolutionMovie[:,:,:,i] = self.getPicture(includeNecrotic)
     
-    def addProliferatingCell(self, x, y, treatmentAffected, step):
-        self.cells.append(Cell(x,y,CellType.PROLIFERATING,  step, treatmentAffected))
+    def addProliferatingCell(self, x, y, treatmentAffected):
+        self.cells.append(Cell(x,y,CellType.PROLIFERATING,  self.cellCycleTime, treatmentAffected))
         self.occupiedPositions[y,x] = 1       
         
     def getPicture(self, includeNecrotic):
